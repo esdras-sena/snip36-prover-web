@@ -1,0 +1,27 @@
+# Dependencies (cloned repos, built binaries)
+deps/
+
+# Build output
+output/
+
+# Rust build artifacts
+target/
+
+# Proof files
+*.proof
+
+# Cairo PIE archives
+*.pie.zip
+
+# Environment secrets
+.env
+
+# Python virtual environment
+sequencer_venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Scarb build artifacts
+tests/contracts/target/
