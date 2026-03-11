@@ -21,6 +21,7 @@ jobs:
       - name: Install starknet-foundry (sncast)
         run: |
           curl -L https://raw.githubusercontent.com/foundry-rs/starknet-foundry/master/scripts/install.sh | sh
+          "$HOME/.starknet-foundry/bin/snfoundryup"
           echo "$HOME/.starknet-foundry/bin" >> "$GITHUB_PATH"
 
       - name: Install scarb
