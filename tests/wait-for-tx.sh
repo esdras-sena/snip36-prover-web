@@ -23,7 +23,7 @@ usage() {
 }
 
 TX_HASH=""
-RPC_URL="${STARKNET_RPC_URL:?ERROR: STARKNET_RPC_URL is required}"
+RPC_URL="${STARKNET_RPC_URL:-}"
 TIMEOUT=120
 INTERVAL=5
 
@@ -59,6 +59,11 @@ if [ -z "$TX_HASH" ]; then
     echo "ERROR: --tx-hash is required."
     echo ""
     usage
+fi
+
+if [ -z "$RPC_URL" ]; then
+    echo "ERROR: --rpc-url is required (or set STARKNET_RPC_URL)."
+    exit 1
 fi
 
 echo "Waiting for tx $TX_HASH ..." >&2

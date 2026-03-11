@@ -473,17 +473,14 @@ fi
 
 export STARKNET_GATEWAY_URL="${STARKNET_GATEWAY_URL:-https://privacy-starknet-integration.starknet.io}"
 
-"$VENV_PYTHON" "$SCRIPT_DIR/sign-and-submit.py" \
+if "$VENV_PYTHON" "$SCRIPT_DIR/sign-and-submit.py" \
     "$PROOF_OUTPUT" \
     "$PROOF_FACTS_FILE" \
     "$CALLDATA" \
-    "$CONTRACT_ADDRESS"
-
-SUBMIT_EXIT=$?
-
-if [ "$SUBMIT_EXIT" -eq 0 ]; then
+    "$CONTRACT_ADDRESS"; then
     pass "Proof accepted by gateway (signed submission)"
 else
+    SUBMIT_EXIT=$?
     fail "Proof submission failed (exit code $SUBMIT_EXIT)"
 fi
 

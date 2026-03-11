@@ -108,8 +108,8 @@ else
 fi
 
 echo "  Installing Python dependencies..."
-"$VENV_DIR/bin/pip" install --quiet -r "$DEPS_DIR/sequencer/scripts/requirements.txt" 2>/dev/null || true
-"$VENV_DIR/bin/pip" install --quiet starknet-py poseidon-py 2>/dev/null || true
+"$VENV_DIR/bin/pip" install --quiet -r "$DEPS_DIR/sequencer/scripts/requirements.txt"
+"$VENV_DIR/bin/pip" install --quiet starknet-py poseidon-py
 echo ""
 
 # --- Build stwo-run-and-prove ---

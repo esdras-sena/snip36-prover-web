@@ -39,7 +39,7 @@ PROOF_FACTS_FILE=""
 SENDER=""
 CALLDATA=""
 GATEWAY_URL="$GATEWAY_URL_DEFAULT"
-RPC_URL="${STARKNET_RPC_URL:?ERROR: STARKNET_RPC_URL is required}"
+RPC_URL="${STARKNET_RPC_URL:-}"
 NONCE=""
 
 while [[ $# -gt 0 ]]; do
@@ -96,6 +96,11 @@ if [ -z "$SENDER" ] || [ -z "$CALLDATA" ]; then
     echo "ERROR: --sender and --calldata are required."
     echo ""
     usage
+fi
+
+if [ -z "$RPC_URL" ]; then
+    echo "ERROR: --rpc-url is required (or set STARKNET_RPC_URL)."
+    exit 1
 fi
 
 if [ -n "$PROOF_BASE64_FILE" ]; then
