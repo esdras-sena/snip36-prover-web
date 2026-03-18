@@ -46,8 +46,10 @@ impl Config {
             .map_err(|_| ConfigError::Missing("STARKNET_PRIVATE_KEY"))?;
         let chain_id =
             std::env::var("STARKNET_CHAIN_ID").unwrap_or_else(|_| "SN_INTEGRATION_SEPOLIA".into());
-        let gateway_url =
-            std::env::var("STARKNET_GATEWAY_URL").unwrap_or_else(|_| DEFAULT_GATEWAY_URL.into());
+        let gateway_url = std::env::var("STARKNET_GATEWAY_URL")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| DEFAULT_GATEWAY_URL.into());
 
         let project_dir = std::env::var("SNIP36_PROJECT_DIR")
             .map(PathBuf::from)
