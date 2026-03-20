@@ -166,5 +166,9 @@ pub const BALANCE_OF_SELECTOR: &str =
 pub const SEND_MESSAGE_SELECTOR: &str =
     "0x12ead94ae9d3f9d2bdb6b847cf255f1f398193a1f88884a0ae8e18f24a037b6";
 
+/// Selector for `play(seed, player, bet)` (CoinFlip contract).
+pub const PLAY_SELECTOR: &str =
+    "0x21c4a0db2b08b026c4e31bf76d5dd9b92aa54c0978df57474355786073775e8";
+
 /// Default gateway URL for SNIP-36 proof submission.
 pub const DEFAULT_GATEWAY_URL: &str = "https://privacy-starknet-integration.starknet.io";

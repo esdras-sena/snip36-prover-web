@@ -15,7 +15,7 @@ The project is a Rust workspace with three crates:
 - `crates/snip36-server/` — Axum web backend (replaces FastAPI) for the proving playground
 - `extractor/` — Rust crate that extracts the compiled virtual OS program (excluded from default workspace, requires `deps/sequencer/`)
 - `web/frontend/` — React + TypeScript playground UI (unchanged)
-- `tests/contracts/` — Cairo test contracts (Counter + Messenger) for E2E tests
+- `tests/contracts/` — Cairo test contracts (Counter, Messenger, CoinFlip) for E2E tests
 - `scripts/` — Shell scripts for external binary orchestration (setup, prove, run-virtual-os)
 - `sample-input/` — Template inputs for the prover and bootloader
 - `deps/` — (generated, gitignored) Cloned repos: `proving-utils`, `sequencer`
@@ -55,6 +55,7 @@ snip36 health --quick
 snip36 setup
 snip36 e2e
 snip36 e2e-messages          # E2E test for L2→L1 messages (messenger contract)
+snip36 e2e-coinflip          # Provable coin flip example (off-chain game)
 ```
 
 ## Web Playground
@@ -74,6 +75,7 @@ cargo test --workspace           # Unit tests
 snip36 health                    # Integration health check (needs RPC)
 snip36 e2e                       # Full E2E: execute → prove → sign → submit
 snip36 e2e-messages              # E2E for L2→L1 messages: deploy Messenger → prove → verify raw_messages.json
+snip36 e2e-coinflip              # Provable coin flip: deploy CoinFlip → prove → verify settlement message
 ```
 
 ## Environment

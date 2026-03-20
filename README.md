@@ -91,6 +91,7 @@ snip36 health              # Run CI health checks
 snip36 setup               # Install all external dependencies
 snip36 e2e                 # Full end-to-end test (counter contract)
 snip36 e2e-messages        # E2E test for L2→L1 messages (messenger contract)
+snip36 e2e-coinflip        # Provable coin flip example (off-chain game)
 snip36 extract             # Extract virtual OS program
 ```
 
@@ -188,6 +189,38 @@ When the virtual transaction emits L2→L1 messages (via `send_message_to_l1_sys
 
 This is the only channel to transfer data from the virtual transaction to the real verification transaction. The `e2e-messages` test verifies this flow end-to-end using a Messenger contract that calls `send_message_to_l1_syscall`.
 
+## Example: Provable Coin Flip
+
+The `CoinFlip` contract (`tests/contracts/src/lib.cairo`) demonstrates using SNIP-36 virtual blocks as a **verifiable computation oracle** for games:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Player places bet (0=heads, 1=tails) + public seed         │
+│                         │                                    │
+│                         ▼                                    │
+│  Virtual tx: play(seed, player, bet)                         │
+│    outcome = pedersen_hash(seed, player) % 2                 │
+│    won = (outcome == bet) ? 1 : 0                            │
+│                         │                                    │
+│                         ▼                                    │
+│  L2→L1 message: [player, seed, bet, outcome, won]            │
+│  (settlement receipt — proven by stwo proof)                 │
+│                         │                                    │
+│                         ▼                                    │
+│  L1 contract can trustlessly release payout                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+The game logic runs **off-chain** in a virtual block, but the stwo proof guarantees the outcome was honestly computed from the public inputs. Anyone can verify the settlement message without re-executing the game.
+
+```bash
+# Play a round (bet=0 for heads, bet=1 for tails)
+snip36 e2e-coinflip --env-file .env --bet 0
+snip36 e2e-coinflip --env-file .env --bet 1 --prove-only
+```
+
+The test deploys the CoinFlip contract, proves a round, and verifies the settlement message matches the expected Poseidon hash computation client-side.
+
 ## Project Structure
 
 ```
@@ -202,7 +235,7 @@ snip-36-prover-backend/
 │   ├── setup.sh                     # Environment setup
 │   └── run-virtual-os.sh            # Execute virtual OS + prove
 ├── tests/
-│   ├── contracts/                   # Cairo test contracts (Counter + Messenger)
+│   ├── contracts/                   # Cairo test contracts (Counter, Messenger, CoinFlip)
 │   └── *.sh / *.py                  # Legacy test scripts (kept for reference)
 ├── web/
 │   └── frontend/                    # React + TypeScript playground UI
