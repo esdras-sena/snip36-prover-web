@@ -20,7 +20,7 @@ impl Default for ResourceBounds {
     fn default() -> Self {
         Self {
             l1_gas: ResourceBound {
-                max_amount: 0x0,
+                max_amount: 0x10000,
                 max_price_per_unit: 0xe8d4a51000,
             },
             l2_gas: ResourceBound {
