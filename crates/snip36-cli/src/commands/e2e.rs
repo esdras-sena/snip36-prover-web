@@ -12,7 +12,9 @@ use snip36_core::rpc::StarknetRpc;
 use snip36_core::signing::{
     compute_invoke_v3_tx_hash, felt_from_hex, sign, sign_and_build_payload,
 };
-use snip36_core::types::{ResourceBounds, SubmitParams, GET_COUNTER_SELECTOR, STRK_TOKEN};
+use snip36_core::types::{
+    ResourceBounds, SubmitParams, GET_COUNTER_SELECTOR, INCREMENT_SELECTOR, STRK_TOKEN,
+};
 use snip36_core::Config;
 
 use super::{format_cmd_output, parse_hex_from_output, parse_long_hex};
@@ -73,6 +75,25 @@ fn format_duration(d: std::time::Duration) -> String {
     }
 }
 
+fn e2e_account_name(account_address: &str) -> String {
+    let hex = account_address.trim_start_matches("0x");
+    let start = hex.len().saturating_sub(8);
+    format!("snip36-e2e-{}", &hex[start..])
+}
+
+fn encode_account_calls(calls: Vec<(String, String, Vec<String>)>) -> Vec<String> {
+    let mut calldata = vec![format!("{:#x}", calls.len())];
+
+    for (to, selector, call_calldata) in calls {
+        calldata.push(to);
+        calldata.push(selector);
+        calldata.push(format!("{:#x}", call_calldata.len()));
+        calldata.extend(call_calldata);
+    }
+
+    calldata
+}
+
 #[derive(Args)]
 pub struct E2eArgs {
     /// Remote prover URL (skip local starknet_os_runner)
@@ -102,6 +123,8 @@ pub struct E2eArgs {
 
 pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()> {
     let config = Config::from_env(env_file)?;
+    let env_prover_url = std::env::var("PROVER_URL").ok().filter(|s| !s.is_empty());
+    let prover_url = args.prover_url.as_deref().or(env_prover_url.as_deref());
 
     // Reset counters
     PASS_COUNT.store(0, Ordering::Relaxed);
@@ -115,7 +138,7 @@ pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()
     let e2e_start = Instant::now();
 
     let rpc = StarknetRpc::new(&config.rpc_url);
-    let account_name = "e2e-test-account-2";
+    let account_name = e2e_account_name(&config.account_address);
 
     let increment_per_block = args.counter_increments * args.increments_per_snos as u64;
     let total_expected = increment_per_block * args.snos_blocks as u64;
@@ -131,7 +154,7 @@ pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()
     info!("");
 
     // Check prerequisites
-    check_prereqs(&config).await?;
+    check_prereqs(&config, prover_url.is_none()).await?;
     tokio::fs::create_dir_all(&args.output_dir).await?;
 
     // ==========================================
@@ -139,12 +162,12 @@ pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()
     // ==========================================
     step(0, "Import account into sncast");
 
-    let _ = tokio::process::Command::new("sncast")
+    let import_output = tokio::process::Command::new("sncast")
         .args([
             "account",
             "import",
             "--name",
-            account_name,
+            &account_name,
             "--address",
             &config.account_address,
             "--private-key",
@@ -153,14 +176,27 @@ pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()
             "oz",
             "--url",
             &config.rpc_url,
-            "--silent",
         ])
         .output()
-        .await;
+        .await
+        .wrap_err("failed to run sncast account import")?;
+
+    let import_combined = format_cmd_output(&import_output);
+    if import_output.status.success() {
+        pass(&format!("sncast account ready: {account_name}"));
+    } else if import_combined.contains("already exists") {
+        pass(&format!("sncast account already exists: {account_name}"));
+    } else {
+        fail(&format!(
+            "Could not import account into sncast: {}",
+            &import_combined[..import_combined.len().min(500)]
+        ));
+        bail!("cannot proceed without sncast account");
+    }
 
     // Verify account is usable
     match rpc.get_nonce(&config.account_address).await {
-        Ok(nonce) => pass(&format!("Account imported (nonce: {:#x})", nonce)),
+        Ok(nonce) => pass(&format!("Account verified on-chain (nonce: {:#x})", nonce)),
         Err(e) => {
             fail(&format!("Could not verify account on-chain: {e}"));
             bail!("cannot proceed without account");
@@ -199,7 +235,7 @@ pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()
     let declare_output = tokio::process::Command::new("sncast")
         .args([
             "--account",
-            account_name,
+            &account_name,
             "declare",
             "--url",
             &config.rpc_url,
@@ -248,7 +284,7 @@ pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()
     let deploy_output = tokio::process::Command::new("sncast")
         .args([
             "--account",
-            account_name,
+            &account_name,
             "deploy",
             "--url",
             &config.rpc_url,
@@ -309,19 +345,18 @@ pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()
     // Proving loop: construct, prove, submit, verify for each block
     // ==========================================
 
-    let increment_selector = "0x7a44dde9fea32737a5cf3f9683b3235138654aa2d189f6fe44af37a61dc60d";
-
-    // Build multicall calldata (reused for every block)
-    let calldata: Vec<String> = {
-        let mut cd = vec![format!("{:#x}", args.increments_per_snos)];
-        for _ in 0..args.increments_per_snos {
-            cd.push(contract_address.clone());
-            cd.push(increment_selector.to_string());
-            cd.push("0x1".to_string());
-            cd.push(format!("{:#x}", args.counter_increments));
-        }
-        cd
-    };
+    // Build account calldata as a Cairo 1 serialized `Array<Call>`.
+    let calldata = encode_account_calls(
+        (0..args.increments_per_snos)
+            .map(|_| {
+                (
+                    contract_address.clone(),
+                    INCREMENT_SELECTOR.to_string(),
+                    vec![format!("{:#x}", args.counter_increments)],
+                )
+            })
+            .collect(),
+    );
 
     let calldata_felts: Vec<starknet_types_core::felt::Felt> = calldata
         .iter()
@@ -332,17 +367,10 @@ pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()
     let private_key_felt = felt_from_hex(&config.private_key).map_err(|e| eyre::eyre!(e))?;
     let chain_id = config.chain_id_felt()?;
 
-    let env_prover_url = std::env::var("PROVER_URL").ok().filter(|s| !s.is_empty());
-    let prover_url = args.prover_url.as_deref().or(env_prover_url.as_deref());
-
-    if prover_url.is_none() && !config.deps_dir.join("sequencer").exists() {
-        fail("No prover available -- set --prover-url or run `snip36 setup`");
-        bail!("no prover available");
-    }
-
     let client = reqwest::Client::new();
     let current_exe = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("snip36"));
     // Read initial counter value
+    let _ = rpc.wait_for_block_after(deploy_block, 120, 3).await;
     let initial_counter = read_counter(&rpc, &contract_address).await.unwrap_or(0);
     info!("  Initial counter: {initial_counter}");
 
@@ -357,7 +385,12 @@ pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()
         step(4 + block_idx, &step_label);
 
         // --- Construct invoke transaction ---
-        let nonce = rpc.get_nonce(&config.account_address).await?;
+        let nonce = rpc
+            .get_nonce_at_block(
+                &config.account_address,
+                serde_json::json!({ "block_number": reference_block }),
+            )
+            .await?;
         let nonce_felt = starknet_types_core::felt::Felt::from(nonce);
 
         // For VOS proving, use zero resource bounds (fees handled by RPC submission)
@@ -527,10 +560,13 @@ pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()
                         let msg = body.get("message").and_then(|v| v.as_str()).unwrap_or("");
 
                         if code == "TRANSACTION_RECEIVED" {
-                            pass(&format!("Gateway accepted (attempt {attempt}/{max_attempts})"));
+                            pass(&format!(
+                                "Gateway accepted (attempt {attempt}/{max_attempts})"
+                            ));
                             accepted_tx_hash = Some(local_tx_hash_hex.clone());
                             break;
-                        } else if (msg.contains("too recent") || msg.contains("stored block hash: 0"))
+                        } else if (msg.contains("too recent")
+                            || msg.contains("stored block hash: 0"))
                             && attempt < max_attempts
                         {
                             info!("  Attempt {attempt}/{max_attempts}: gateway not ready, waiting 10s...");
@@ -565,7 +601,9 @@ pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()
                         break;
                     }
                     Err(snip36_core::rpc::RpcError::JsonRpc(msg)) if attempt < max_attempts => {
-                        info!("  Attempt {attempt}/{max_attempts}: RPC error, waiting 10s... ({msg})");
+                        info!(
+                            "  Attempt {attempt}/{max_attempts}: RPC error, waiting 10s... ({msg})"
+                        );
                         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
                     }
                     Err(e) => {
@@ -591,6 +629,7 @@ pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()
                 let bn = snip36_core::rpc::receipt_block_number(&receipt).unwrap_or(0);
                 info!("  Tx included in block {bn}");
                 reference_block = bn;
+                let _ = rpc.wait_for_block_after(bn, 120, 3).await;
             }
             Err(e) => {
                 fail(&format!("Tx not confirmed: {e}"));
@@ -693,7 +732,7 @@ pub async fn run(args: E2eArgs, env_file: Option<&std::path::Path>) -> Result<()
     }
 }
 
-async fn check_prereqs(config: &Config) -> Result<()> {
+async fn check_prereqs(config: &Config, require_local_prover: bool) -> Result<()> {
     for cmd in ["scarb", "sncast"] {
         let check = tokio::process::Command::new("which")
             .arg(cmd)
@@ -704,12 +743,22 @@ async fn check_prereqs(config: &Config) -> Result<()> {
         }
     }
 
-    let prover = config.prover_bin();
-    if !prover.exists() {
-        bail!(
-            "stwo-run-and-prove not found at {}. Run `snip36 setup` first.",
-            prover.display()
-        );
+    if require_local_prover {
+        let runner = config.runner_bin();
+        if !runner.exists() {
+            bail!(
+                "starknet_transaction_prover not found at {}. Run `snip36 setup` first or provide --prover-url.",
+                runner.display()
+            );
+        }
+
+        let prover = config.prover_bin();
+        if !prover.exists() {
+            bail!(
+                "stwo-run-and-prove not found at {}. Run `snip36 setup` first or provide --prover-url.",
+                prover.display()
+            );
+        }
     }
 
     Ok(())

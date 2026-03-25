@@ -29,7 +29,7 @@ impl Default for ResourceBounds {
             },
             l1_data_gas: ResourceBound {
                 max_amount: 0x1b0,
-                max_price_per_unit: 0x100000, // ~1M — covers sepolia data gas spikes
+                max_price_per_unit: 0xe8d4a51000, // ~1T — covers sepolia data gas spikes
             },
         }
     }
@@ -39,9 +39,18 @@ impl ResourceBounds {
     /// Resource bounds for virtual OS proving: enough gas for execution, zero price (no fee).
     pub fn zero_fee() -> Self {
         Self {
-            l1_gas: ResourceBound { max_amount: 0, max_price_per_unit: 0 },
-            l2_gas: ResourceBound { max_amount: 0x7000000, max_price_per_unit: 0 },
-            l1_data_gas: ResourceBound { max_amount: 0x1b0, max_price_per_unit: 0 },
+            l1_gas: ResourceBound {
+                max_amount: 0,
+                max_price_per_unit: 0,
+            },
+            l2_gas: ResourceBound {
+                max_amount: 0x7000000,
+                max_price_per_unit: 0,
+            },
+            l1_data_gas: ResourceBound {
+                max_amount: 0x1b0,
+                max_price_per_unit: 0,
+            },
         }
     }
 
@@ -58,7 +67,7 @@ impl ResourceBounds {
             },
             l1_data_gas: ResourceBound {
                 max_amount: 0x1b0,
-                max_price_per_unit: 0x5dc,
+                max_price_per_unit: 0xe8d4a51000,
             },
         }
     }
@@ -80,7 +89,6 @@ impl ResourceBounds {
             },
         })
     }
-
 }
 
 /// Proof data returned by the prover.
@@ -125,8 +133,7 @@ pub struct Session {
 // Well-known constants
 
 /// STRK token address on sepolia.
-pub const STRK_TOKEN: &str =
-    "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
+pub const STRK_TOKEN: &str = "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 
 /// OpenZeppelin Account class hash on sepolia.
 pub const OZ_ACCOUNT_CLASS_HASH: &str =
@@ -149,6 +156,4 @@ pub const SEND_MESSAGE_SELECTOR: &str =
     "0x12ead94ae9d3f9d2bdb6b847cf255f1f398193a1f88884a0ae8e18f24a037b6";
 
 /// Selector for `play(seed, player, bet)` (CoinFlip contract).
-pub const PLAY_SELECTOR: &str =
-    "0x21c4a0db2b08b026c4e31bf76d5dd9b92aa54c0978df57474355786073775e8";
-
+pub const PLAY_SELECTOR: &str = "0x21c4a0db2b08b026c4e31bf76d5dd9b92aa54c0978df57474355786073775e8";
