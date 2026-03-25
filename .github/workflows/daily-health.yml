@@ -77,10 +77,18 @@ jobs:
         if: steps.deps-cache.outputs.cache-hit != 'true'
         run: ./snip36 setup
 
-      - name: Run E2E test
+      - name: Run E2E counter test
         env:
           STARKNET_RPC_URL: ${{ secrets.STARKNET_RPC_URL }}
           STARKNET_ACCOUNT_ADDRESS: ${{ secrets.STARKNET_ACCOUNT_ADDRESS }}
           STARKNET_PRIVATE_KEY: ${{ secrets.STARKNET_PRIVATE_KEY }}
           STARKNET_GATEWAY_URL: ${{ secrets.STARKNET_GATEWAY_URL }}
         run: ./snip36 e2e
+
+      - name: Run E2E messages test
+        env:
+          STARKNET_RPC_URL: ${{ secrets.STARKNET_RPC_URL }}
+          STARKNET_ACCOUNT_ADDRESS: ${{ secrets.STARKNET_ACCOUNT_ADDRESS }}
+          STARKNET_PRIVATE_KEY: ${{ secrets.STARKNET_PRIVATE_KEY }}
+          STARKNET_GATEWAY_URL: ${{ secrets.STARKNET_GATEWAY_URL }}
+        run: ./snip36 e2e-messages
