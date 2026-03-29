@@ -10,7 +10,7 @@
 use starknet_crypto::poseidon_hash_many;
 use starknet_types_core::felt::Felt;
 
-use crate::types::ResourceBounds;
+use crate::types::{ResourceBounds, Snip36PayloadInput, Snip36PayloadOutput};
 
 /// "invoke" encoded as a short string felt.
 fn invoke_prefix() -> Felt {
@@ -38,22 +38,15 @@ fn resource_name_felt(name: &str) -> u64 {
 /// `[0(1 byte) | resource_name(7 bytes) | max_amount(8 bytes) | max_price(16 bytes)]`
 fn concat_resource(max_amount: u64, max_price: u128, resource_name: &str) -> Felt {
     let name = resource_name_felt(resource_name) as u128;
-    // Build a 256-bit value: name at bits [248:192], amount at [191:128], price at [127:0]
-    // name (56 bits) << 192 | max_amount (64 bits) << 128 | max_price (128 bits)
     let high = (name << 64) | (max_amount as u128);
     let low = max_price;
 
-    // Construct from two u128 halves: value = high * 2^128 + low
     let high_felt = Felt::from(high);
     let shift = Felt::from(1u128 << 64).pow_felt(&Felt::TWO); // 2^128
     high_felt * shift + Felt::from(low)
 }
 
 /// Compute the `tip_resource_bounds_hash` per SNIP-8.
-///
-/// ```text
-/// poseidon(tip, concat(L1_GAS), concat(L2_GAS), concat(L1_DATA_GAS))
-/// ```
 fn compute_tip_resource_bounds_hash(tip: Felt, bounds: &ResourceBounds) -> Felt {
     let l1 = concat_resource(
         bounds.l1_gas.max_amount,
@@ -73,24 +66,6 @@ fn compute_tip_resource_bounds_hash(tip: Felt, bounds: &ResourceBounds) -> Felt 
     poseidon_hash_many(&[tip, l1, l2, l1_data])
 }
 
-/// Compute the invoke v3 transaction hash, optionally including proof_facts (SNIP-36).
-///
-/// The hash chain is:
-/// ```text
-/// poseidon(
-///     INVOKE_PREFIX,
-///     version,
-///     sender_address,
-///     tip_resource_bounds_hash,
-///     paymaster_data_hash,
-///     chain_id,
-///     nonce,
-///     da_mode,
-///     account_deployment_data_hash,
-///     calldata_hash,
-///     [proof_facts_hash]   // only if proof_facts is non-empty
-/// )
-/// ```
 #[allow(clippy::too_many_arguments)]
 pub fn compute_invoke_v3_tx_hash(
     sender_address: Felt,
@@ -111,7 +86,6 @@ pub fn compute_invoke_v3_tx_hash(
     let account_deployment_data_hash = poseidon_hash_many(account_deployment_data);
     let calldata_hash = poseidon_hash_many(calldata);
 
-    // data_availability_mode: [0..0 (192 bit) | nonce_mode (32 bit) | fee_mode (32 bit)]
     let da_mode = Felt::from(((nonce_da_mode as u64) << 32) | fee_da_mode as u64);
 
     let version = Felt::THREE;
@@ -129,7 +103,6 @@ pub fn compute_invoke_v3_tx_hash(
         calldata_hash,
     ];
 
-    // SNIP-36 extension: append proof_facts_hash if non-empty
     if !proof_facts.is_empty() {
         let proof_facts_hash = poseidon_hash_many(proof_facts);
         elements.push(proof_facts_hash);
@@ -138,17 +111,12 @@ pub fn compute_invoke_v3_tx_hash(
     poseidon_hash_many(&elements)
 }
 
-/// ECDSA signature (r, s) over the Stark curve.
 #[derive(Debug, Clone)]
 pub struct Signature {
     pub r: Felt,
     pub s: Felt,
 }
 
-/// Sign a message hash with an ECDSA private key on the Stark curve.
-///
-/// Uses RFC-6979 deterministic nonce generation to avoid nonce reuse,
-/// which would leak the private key.
 pub fn sign(private_key: Felt, message_hash: Felt) -> Result<Signature, SignError> {
     let k = starknet_crypto::rfc6979_generate_k(&message_hash, &private_key, None);
     let sig = starknet_crypto::sign(&private_key, &message_hash, &k)
@@ -156,7 +124,6 @@ pub fn sign(private_key: Felt, message_hash: Felt) -> Result<Signature, SignErro
     Ok(Signature { r: sig.r, s: sig.s })
 }
 
-/// Compute the SNIP-36 tx hash, sign it, and return the RPC invoke transaction payload.
 pub fn sign_and_build_payload(
     params: &crate::types::SubmitParams,
 ) -> Result<(Felt, serde_json::Value), SignError> {
@@ -165,12 +132,12 @@ pub fn sign_and_build_payload(
         &params.calldata,
         params.chain_id,
         params.nonce,
-        Felt::ZERO, // tip
+        Felt::ZERO,
         &params.resource_bounds,
-        &[],  // paymaster_data
-        &[],  // account_deployment_data
-        0,    // nonce_da_mode (L1)
-        0,    // fee_da_mode (L1)
+        &[],
+        &[],
+        0,
+        0,
         &params.proof_facts,
     );
 
@@ -208,13 +175,47 @@ pub fn sign_and_build_payload(
     Ok((tx_hash, payload))
 }
 
+pub fn build_payload_from_json(input: &Snip36PayloadInput) -> Result<Snip36PayloadOutput, String> {
+    let sender_address = felt_from_hex(&input.sender_address)?;
+    let private_key = felt_from_hex(&input.private_key)?;
+    let calldata = input
+        .calldata
+        .iter()
+        .map(|v| felt_from_hex(v))
+        .collect::<Result<Vec<_>, _>>()?;
+    let proof_facts = input
+        .proof_facts
+        .iter()
+        .map(|v| felt_from_hex(v))
+        .collect::<Result<Vec<_>, _>>()?;
+    let nonce = felt_from_hex(&input.nonce)?;
+    let chain_id = chain_id_felt(&input.chain_id);
+    let resource_bounds = input.resource_bounds.clone().unwrap_or_default();
+
+    let params = crate::types::SubmitParams {
+        sender_address,
+        private_key,
+        calldata,
+        proof_base64: input.proof_base64.clone(),
+        proof_facts,
+        nonce,
+        chain_id,
+        resource_bounds,
+    };
+
+    let (tx_hash, payload) = sign_and_build_payload(&params).map_err(|e| e.to_string())?;
+    Ok(Snip36PayloadOutput {
+        tx_hash: format!("{:#x}", tx_hash),
+        payload,
+    })
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum SignError {
     #[error("ECDSA signing failed: {0}")]
     Ecdsa(String),
 }
 
-/// Parse a hex string (with or without 0x prefix) to a Felt.
 pub fn felt_from_hex(hex_str: &str) -> Result<Felt, String> {
     Felt::from_hex(hex_str).map_err(|e| format!("invalid felt hex '{hex_str}': {e}"))
 }
@@ -225,7 +226,6 @@ mod tests {
 
     #[test]
     fn test_invoke_prefix() {
-        // "invoke" = 0x696e766f6b65
         let prefix = invoke_prefix();
         assert_eq!(format!("{:#x}", prefix), "0x696e766f6b65");
     }
@@ -234,24 +234,18 @@ mod tests {
     fn test_resource_name_felt() {
         assert_eq!(resource_name_felt("L1_GAS"), 0x004c315f474153);
         assert_eq!(resource_name_felt("L2_GAS"), 0x004c325f474153);
-        // "L1_DATA" is exactly 7 bytes
         assert_eq!(resource_name_felt("L1_DATA"), 0x4c315f44415441);
     }
 
     #[test]
     fn test_chain_id_encoding() {
         let cid = chain_id_felt("SN_SEPOLIA");
-        // Should match Python: int.from_bytes(b"SN_SEPOLIA", "big")
-        let expected = Felt::from_hex(
-            "0x534e5f5345504f4c4941",
-        )
-        .unwrap();
+        let expected = Felt::from_hex("0x534e5f5345504f4c4941").unwrap();
         assert_eq!(cid, expected);
     }
 
     #[test]
     fn test_tx_hash_without_proof_facts() {
-        // Ensure the hash chain produces a deterministic result with empty proof_facts.
         let sender = Felt::from_hex("0x123").unwrap();
         let calldata = vec![Felt::ONE];
         let chain_id = chain_id_felt("SN_SEPOLIA");
@@ -292,9 +286,24 @@ mod tests {
             0,
             &proof_facts,
         );
-        assert_ne!(
-            h_without, h_with,
-            "hash with proof_facts should differ from without"
-        );
+        assert_ne!(h_without, h_with);
+    }
+
+    #[test]
+    fn test_build_payload_from_json() {
+        let input = Snip36PayloadInput {
+            sender_address: "0x123".into(),
+            private_key: "0x456".into(),
+            calldata: vec!["0x1".into(), "0x2".into()],
+            proof_base64: "cHJvb2Y=".into(),
+            proof_facts: vec!["0xabc".into()],
+            nonce: "0x5".into(),
+            chain_id: "SN_SEPOLIA".into(),
+            resource_bounds: None,
+        };
+
+        let output = build_payload_from_json(&input).unwrap();
+        assert!(output.tx_hash.starts_with("0x"));
+        assert_eq!(output.payload["proof"], "cHJvb2Y=");
     }
 }

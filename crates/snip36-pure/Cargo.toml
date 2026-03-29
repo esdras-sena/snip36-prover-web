@@ -1,0 +1,13 @@
+[package]
+name = "snip36-pure"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Pure SNIP-36 types and signing logic extracted for wasm-safe builds"
+
+[dependencies]
+starknet-crypto = { workspace = true }
+starknet-types-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

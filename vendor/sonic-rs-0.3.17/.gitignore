@@ -1,0 +1,14 @@
+target/
+build/
+.vscode/
+perf.data*
+.tmp/
+bench.sh
+rust-
+*.data
+opensource_git_commit.log
+Cargo.lock
+*.profraw
+*.profdata
+*.svg
+*.diff

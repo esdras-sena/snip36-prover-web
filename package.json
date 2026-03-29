@@ -1,0 +1,24 @@
+{
+  "name": "@snip36/prover-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "sync-assets": "node ./scripts-sdk/sync-wasm-assets.mjs",
+    "check": "tsc --noEmit",
+    "prepare": "npm run sync-assets"
+  },
+  "dependencies": {
+    "snip36-wasm": "file:./crates/snip36-wasm/pkg",
+    "snip36-browser-prover-wasm": "file:./crates/snip36-browser-prover-wasm/pkg",
+    "starknet-transaction-prover-wasm": "file:./deps/sequencer/crates/starknet_transaction_prover_wasm/pkg"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

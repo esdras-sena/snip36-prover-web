@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 snip36-core = { path = "../snip36-core" }
+snip36-artifact = { path = "../snip36-artifact" }
 starknet-types-core = { workspace = true }
 tokio = { workspace = true }
 tokio-stream = "0.1"

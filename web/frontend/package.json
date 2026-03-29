@@ -9,9 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@snip36/prover-web": "file:../..",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "starknet": "^9.2.1"
+    "snip36-wasm": "file:../../crates/snip36-wasm/pkg",
+    "starknet": "^9.2.1",
+    "starknet-transaction-prover-wasm": "file:../../deps/sequencer/crates/starknet_transaction_prover_wasm/pkg"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

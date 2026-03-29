@@ -1,3 +1,4 @@
+pub mod browser;
 pub mod coinflip;
 pub mod deploy;
 pub mod fund;
@@ -18,6 +19,8 @@ use crate::state::AppState;
 pub fn api_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/health", get(read::health))
+        .route("/api/browser/export-artifact", post(browser::export_artifact_route))
+        .route("/api/browser/export-proof-bundle", post(browser::export_proof_bundle_route))
         .route("/api/fund", post(fund::fund_account))
         .route("/api/deploy-account", post(deploy::deploy_account))
         .route("/api/deploy-counter", post(deploy::deploy_counter))

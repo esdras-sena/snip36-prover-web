@@ -654,7 +654,6 @@ pub async fn play_coinflip(
             nonce: nonce_felt,
             chain_id,
             resource_bounds: ResourceBounds::default(),
-            gateway_url: state.config.gateway_url.clone(),
         };
 
         let (gw_tx_hash, payload) = match sign_and_build_payload(&params) {
@@ -666,9 +665,16 @@ pub async fn play_coinflip(
         };
 
         let gw_tx_hash_hex = format!("{:#x}", gw_tx_hash);
+        let gateway_url = match state.config.gateway_url.as_deref() {
+            Some(url) => url,
+            None => {
+                send("error", "STARKNET_GATEWAY_URL is required for coinflip submission").await;
+                return;
+            }
+        };
         let submit_url = format!(
             "{}/gateway/add_transaction",
-            state.config.gateway_url.trim_end_matches('/')
+            gateway_url.trim_end_matches('/')
         );
 
         send(

@@ -1,0 +1,19 @@
+[package]
+name = "snip36-wasm"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Wasm-safe SNIP-36 core for artifact normalization, hashing, and payload building"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O1"]
+
+[dependencies]
+snip36-pure = { path = "../snip36-pure" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
+wasm-bindgen = { workspace = true }

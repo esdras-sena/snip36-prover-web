@@ -103,6 +103,55 @@ pub struct ProofOutput {
     pub proof_facts: Vec<String>,
 }
 
+/// Portable artifact exported by the native execution layer for wasm-safe proving.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Snip36ProofArtifact {
+    pub version: u32,
+    pub block_number: u64,
+    pub rpc_url: String,
+    pub chain_id: String,
+    pub strk_fee_token_address: String,
+    pub tx_hash: Option<String>,
+    pub transaction: serde_json::Value,
+    /// Optional precomputed execution payload for a future wasm prover.
+    pub execution_payload: Option<String>,
+    /// Optional proof-facts preimage exported by the native layer.
+    pub proof_facts_preimage: Option<Vec<String>>,
+    /// Optional raw message expectation exported by the native layer.
+    pub raw_messages: Option<serde_json::Value>,
+}
+
+/// Result shape shared by native and wasm-friendly proving/submission flows.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Snip36ProofBundle {
+    pub artifact: Snip36ProofArtifact,
+    pub proof_base64: Option<String>,
+    pub proof_facts: Vec<String>,
+    pub raw_messages: Option<serde_json::Value>,
+    pub proof_size: Option<u64>,
+}
+
+/// JSON/wasm-friendly transaction signing input.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Snip36PayloadInput {
+    pub sender_address: String,
+    pub private_key: String,
+    pub calldata: Vec<String>,
+    pub proof_base64: String,
+    pub proof_facts: Vec<String>,
+    pub nonce: String,
+    pub chain_id: String,
+    #[serde(default)]
+    pub resource_bounds: Option<ResourceBounds>,
+}
+
+/// JSON/wasm-friendly payload output.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Snip36PayloadOutput {
+    pub tx_hash: String,
+    pub payload: serde_json::Value,
+}
+
 /// Parameters for a SNIP-36 proof submission via RPC.
 #[derive(Debug, Clone)]
 pub struct SubmitParams {

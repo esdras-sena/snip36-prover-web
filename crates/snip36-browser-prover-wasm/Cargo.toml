@@ -1,0 +1,21 @@
+[package]
+name = "snip36-browser-prover-wasm"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+base64 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde-wasm-bindgen = { workspace = true }
+wasm-bindgen = { workspace = true }
+cairo-vm = "3.2.0"
+privacy-prove = { git = "https://github.com/starkware-libs/proving-utils", rev = "dbc39e745d23424f1997ce3505ce5f83805cefde" }
+starknet-types-core = { workspace = true }

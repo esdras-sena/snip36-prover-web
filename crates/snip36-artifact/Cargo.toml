@@ -1,0 +1,15 @@
+[package]
+name = "snip36-artifact"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Portable proof artifact export layer for SNIP-36 web/wasm flows"
+
+[dependencies]
+snip36-core = { path = "../snip36-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+color-eyre = { workspace = true }

@@ -2,16 +2,39 @@
 resolver = "2"
 members = [
     "crates/snip36-core",
-    "crates/snip36-cli",
     "crates/snip36-server",
+    "crates/snip36-artifact",
+    "crates/snip36-pure",
+    "crates/snip36-wasm",
+    "crates/snip36-browser-prover-wasm",
 ]
 # The extractor crate depends on deps/sequencer/ (cloned by `snip36 setup`).
 # It is excluded from the default workspace so `cargo build` works without it.
 exclude = ["extractor"]
+default-members = [
+    "crates/snip36-core",
+    "crates/snip36-server",
+    "crates/snip36-artifact",
+    "crates/snip36-pure",
+    "crates/snip36-wasm",
+    "crates/snip36-browser-prover-wasm",
+]
 
 [workspace.package]
+version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/esdras-santos/snip36-prover-web"
+
+[patch.crates-io]
+sonic-rs = { path = "vendor/sonic-rs-0.3.17" }
+
+[profile.release]
+lto = "fat"
+opt-level = "z"
+codegen-units = 1
+strip = true
+panic = "abort"
 
 [workspace.dependencies]
 # Starknet (only the low-level crates we actually use)
@@ -24,6 +47,7 @@ tokio = { version = "1", features = ["full"] }
 # Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde-wasm-bindgen = "0.6"
 
 # HTTP
 reqwest = { version = "0.12", features = ["json"] }
@@ -42,3 +66,4 @@ base64 = "0.22"
 dotenvy = "0.15"
 rand = "0.8"
 hex = "0.4"
+wasm-bindgen = "0.2"
