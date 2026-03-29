@@ -14,10 +14,12 @@ for (const name of readdirSync(assetsDir)) {
   }
 }
 
+const repoRoot = resolve(root, '..');
+
 const files = [
-  resolve(root, 'crates/snip36-wasm/pkg/snip36_wasm_bg.wasm'),
-  resolve(root, 'crates/snip36-browser-prover-wasm/pkg/snip36_browser_prover_wasm_bg.wasm'),
-  resolve(root, 'deps/sequencer/crates/starknet_transaction_prover_wasm/pkg/starknet_transaction_prover_wasm_bg.wasm'),
+  resolve(repoRoot, 'crates/snip36-wasm/pkg/snip36_wasm_bg.wasm'),
+  resolve(repoRoot, 'crates/snip36-browser-prover-wasm/pkg/snip36_browser_prover_wasm_bg.wasm'),
+  resolve(repoRoot, 'deps/sequencer/crates/starknet_transaction_prover_wasm/pkg/starknet_transaction_prover_wasm_bg.wasm'),
 ];
 
 for (const source of files) {

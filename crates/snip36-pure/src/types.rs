@@ -27,6 +27,14 @@ impl Default for ResourceBounds {
 }
 
 impl ResourceBounds {
+    pub fn zero_fee() -> Self {
+        Self {
+            l1_gas: ResourceBound { max_amount: 0, max_price_per_unit: 0 },
+            l2_gas: ResourceBound { max_amount: 0x7000000, max_price_per_unit: 0 },
+            l1_data_gas: ResourceBound { max_amount: 0x1b0, max_price_per_unit: 0 },
+        }
+    }
+
     pub fn to_rpc_json(&self) -> serde_json::Value {
         serde_json::json!({
             "l1_gas": {
@@ -79,6 +87,23 @@ pub struct Snip36PayloadInput {
     pub chain_id: String,
     #[serde(default)]
     pub resource_bounds: Option<ResourceBounds>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Snip36TransactionInput {
+    pub sender_address: String,
+    pub private_key: String,
+    pub calldata: Vec<String>,
+    pub nonce: String,
+    pub chain_id: String,
+    #[serde(default)]
+    pub resource_bounds: Option<ResourceBounds>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Snip36TransactionOutput {
+    pub tx_hash: String,
+    pub transaction: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

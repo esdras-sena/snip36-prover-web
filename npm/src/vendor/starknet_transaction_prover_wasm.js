@@ -734,7 +734,7 @@ async function __wbg_init(module_or_path) {
     }
 
     if (typeof module_or_path === 'undefined') {
-        module_or_path = new URL('../../assets/starknet_transaction_prover_wasm_bg.wasm.br', import.meta.url);
+        throw new Error('starknet_transaction_prover_wasm init requires explicit wasm bytes from the package loader');
     }
     const imports = __wbg_get_imports();
 

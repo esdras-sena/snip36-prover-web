@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
 import {
   buildPayload,
-  proveTransactionInBrowser,
+  createProofArtifact,
+  executeVirtualBlockInBrowser,
+  prepareTransactionForProving,
+  proveArtifactInBrowser,
   type Snip36ProofArtifact,
   type Snip36ProofBundle,
 } from "@snip36/prover-web";
@@ -12,11 +15,9 @@ type Status = "idle" | "loading" | "done" | "error";
 
 export default function App() {
   const [rpcUrl, setRpcUrl] = useState("http://localhost:9545");
-  const [blockNumber, setBlockNumber] = useState(0);
   const [txHash, setTxHash] = useState("");
   const [senderAddress, setSenderAddress] = useState("");
   const [privateKey, setPrivateKey] = useState("");
-  const [nonce, setNonce] = useState("0x0");
   const [chainId, setChainId] = useState("SN_SEPOLIA");
   const [calldataText, setCalldataText] = useState("[]");
   const [artifact, setArtifact] = useState<Snip36ProofArtifact | null>(null);
@@ -41,14 +42,24 @@ export default function App() {
     setArtifact(null);
     setBundle(null);
     try {
-      const nextBundle = await proveTransactionInBrowser({
+      const prepared = await prepareTransactionForProving({
         rpc_url: rpcUrl,
-        block_number: Number(blockNumber),
-        tx_hash: txHash || undefined,
+        sender_address: senderAddress,
+        private_key: privateKey,
+        calldata: parsedCalldata,
+        chain_id: chainId,
+      });
+      const request = {
+        rpc_url: rpcUrl,
+        tx_hash: prepared.tx_hash,
+        tx_json: prepared.transaction,
         chain_id: chainId,
         strk_fee_token_address: STRK_TOKEN,
-      });
-      setArtifact(nextBundle.artifact);
+      };
+      const baseArtifact = createProofArtifact({ ...request, transaction: prepared.transaction });
+      const executedArtifact = await executeVirtualBlockInBrowser(baseArtifact);
+      const nextBundle = await proveArtifactInBrowser(executedArtifact);
+      setArtifact(executedArtifact);
       setBundle(nextBundle);
       setStatus("done");
     } catch (err) {
@@ -63,12 +74,12 @@ export default function App() {
     setError(null);
     try {
       const nextPayload = await buildPayload({
+        rpc_url: rpcUrl,
         sender_address: senderAddress,
         private_key: privateKey,
         calldata: parsedCalldata,
         proof_base64: bundle.proof_base64,
         proof_facts: bundle.proof_facts,
-        nonce,
         chain_id: chainId,
       });
       setPayload(nextPayload);
@@ -82,20 +93,17 @@ export default function App() {
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <h1 style={{ marginTop: 0 }}>snip36-web browser proving test</h1>
+        <h1 style={{ marginTop: 0 }}>SNIP-36 web twin</h1>
         <p style={mutedStyle}>
-          Fetch the transaction from RPC, run the SNIP-36 execution path in wasm,
-          generate the proof in browser, then build the final payload locally.
+          Same architectural flow as the backend: prepare the transaction, let the package resolve the latest block and sender nonce,
+          prove it in-browser through virtual block execution → Cairo PIE → stwo proof, then build the proof-bearing payload locally.
         </p>
 
         <div style={gridStyle}>
           <Field label="RPC URL" value={rpcUrl} onChange={setRpcUrl} />
-          <Field label="Block number" value={String(blockNumber)} onChange={(v) => setBlockNumber(Number(v || 0))} />
-          <Field label="Tx hash" value={txHash} onChange={setTxHash} />
           <Field label="Chain ID" value={chainId} onChange={setChainId} />
           <Field label="Sender address" value={senderAddress} onChange={setSenderAddress} />
           <Field label="Private key" value={privateKey} onChange={setPrivateKey} />
-          <Field label="Nonce" value={nonce} onChange={setNonce} />
         </div>
 
         <label style={{ display: "block", marginTop: 16 }}>
@@ -109,8 +117,8 @@ export default function App() {
         </label>
 
         <div style={buttonRowStyle}>
-          <button onClick={handleProveInBrowser} style={buttonStyle}>1. Prove transaction in browser</button>
-          <button onClick={handleBuildPayload} style={buttonStyle} disabled={!bundle?.proof_base64}>2. Build payload</button>
+          <button onClick={handleProveInBrowser} style={buttonStyle}>1. Prove: virtual block → proof bundle</button>
+          <button onClick={handleBuildPayload} style={buttonStyle} disabled={!bundle?.proof_base64}>2. Submit stage: build proof-bearing payload</button>
         </div>
 
         <div style={statusStyle(status)}>

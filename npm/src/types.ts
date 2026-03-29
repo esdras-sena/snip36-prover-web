@@ -11,7 +11,7 @@ export interface ResourceBounds {
 
 export interface Snip36ProofArtifact {
   version: number;
-  block_number: number;
+  block_number?: number | null;
   rpc_url: string;
   chain_id: string;
   strk_fee_token_address: string;
@@ -20,6 +20,30 @@ export interface Snip36ProofArtifact {
   execution_payload?: string | null;
   proof_facts_preimage?: string[] | null;
   raw_messages?: unknown;
+}
+
+export interface Snip36TransactionBuildInput {
+  rpc_url: string;
+  sender_address: string;
+  private_key: string;
+  calldata: string[];
+  nonce?: string | null;
+  chain_id: string;
+  resource_bounds?: ResourceBounds | null;
+}
+
+export interface Snip36TransactionBuildOutput {
+  tx_hash: string;
+  transaction: unknown;
+}
+
+export interface Snip36ProveRequest {
+  rpc_url: string;
+  block_number?: number | null;
+  tx_hash?: string;
+  tx_json?: unknown;
+  chain_id: string;
+  strk_fee_token_address: string;
 }
 
 export interface CairoPieExecutionPayload {
@@ -36,12 +60,13 @@ export interface Snip36ProofBundle {
 }
 
 export interface Snip36PayloadInput {
+  rpc_url: string;
   sender_address: string;
   private_key: string;
   calldata: string[];
   proof_base64: string;
   proof_facts: string[];
-  nonce: string;
+  nonce?: string | null;
   chain_id: string;
   resource_bounds?: ResourceBounds | null;
 }

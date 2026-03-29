@@ -37,9 +37,16 @@ Open http://localhost:3000
 
 ## Architecture
 
-- **Frontend** (React + starknet.js v9): Key generation, tx hash computation, and signing happen entirely in-browser. The private key never leaves the client.
-- **Backend** (Axum / Rust): REST + SSE API backed by `snip36-core` for signing and the shell scripts for prover orchestration. Holds a pre-funded master account for funding dev accounts.
-- **Proof streaming**: SSE (Server-Sent Events) streams prover logs in real-time.
+This playground follows the same end-to-end pipeline as `snip-36-prover-backend`:
+
+1. **Deploy / invoke** — prepare and send a Starknet transaction
+2. **Prove** — virtual block execution against a reference `block_number`, then Cairo PIE → stwo proof
+3. **Submit** — build and submit the proof-bearing SNIP-36 transaction
+
+Implementation split:
+- **Frontend** (React + browser wasm): browser-side transaction preparation, virtual block execution, Cairo PIE proving, payload building
+- **Backend** (Axum / Rust): optional REST + SSE helpers, funding/deploy/invoke routes, and submission helpers
+- **Proof streaming**: SSE (Server-Sent Events) streams prover logs in real-time when using the backend prover path
 
 ### Transaction Hashing
 

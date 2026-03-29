@@ -1,7 +1,10 @@
 use starknet_crypto::poseidon_hash_many;
 use starknet_types_core::felt::Felt;
 
-use crate::types::{ResourceBounds, Snip36PayloadInput, Snip36PayloadOutput, SubmitParams};
+use crate::types::{
+    ResourceBounds, Snip36PayloadInput, Snip36PayloadOutput, Snip36TransactionInput,
+    Snip36TransactionOutput, SubmitParams,
+};
 
 fn invoke_prefix() -> Felt {
     Felt::from_bytes_be_slice(b"invoke")
@@ -125,6 +128,52 @@ pub fn sign_and_build_payload(params: &SubmitParams) -> Result<(Felt, serde_json
     });
 
     Ok((tx_hash, payload))
+}
+
+pub fn build_transaction_from_json(input: &Snip36TransactionInput) -> Result<Snip36TransactionOutput, String> {
+    let params = SubmitParams {
+        sender_address: felt_from_hex(&input.sender_address)?,
+        private_key: felt_from_hex(&input.private_key)?,
+        calldata: input.calldata.iter().map(|v| felt_from_hex(v)).collect::<Result<Vec<_>, _>>()?,
+        proof_base64: String::new(),
+        proof_facts: Vec::new(),
+        nonce: felt_from_hex(&input.nonce)?,
+        chain_id: chain_id_felt(&input.chain_id),
+        resource_bounds: input.resource_bounds.clone().unwrap_or_else(ResourceBounds::zero_fee),
+    };
+
+    let tx_hash = compute_invoke_v3_tx_hash(
+        params.sender_address,
+        &params.calldata,
+        params.chain_id,
+        params.nonce,
+        Felt::ZERO,
+        &params.resource_bounds,
+        &[],
+        &[],
+        0,
+        0,
+        &[],
+    );
+
+    let sig = sign(params.private_key, tx_hash).map_err(|e| e.to_string())?;
+    let calldata_hex: Vec<String> = params.calldata.iter().map(|f| format!("{:#x}", f)).collect();
+    let transaction = serde_json::json!({
+        "type": "INVOKE",
+        "version": "0x3",
+        "sender_address": input.sender_address,
+        "calldata": calldata_hex,
+        "nonce": format!("{:#x}", params.nonce),
+        "resource_bounds": params.resource_bounds.to_rpc_json(),
+        "tip": "0x0",
+        "paymaster_data": [],
+        "account_deployment_data": [],
+        "nonce_data_availability_mode": "L1",
+        "fee_data_availability_mode": "L1",
+        "signature": [format!("{:#x}", sig.r), format!("{:#x}", sig.s)],
+    });
+
+    Ok(Snip36TransactionOutput { tx_hash: format!("{:#x}", tx_hash), transaction })
 }
 
 pub fn build_payload_from_json(input: &Snip36PayloadInput) -> Result<Snip36PayloadOutput, String> {

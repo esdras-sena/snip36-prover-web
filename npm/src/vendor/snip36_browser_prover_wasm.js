@@ -387,7 +387,7 @@ async function __wbg_init(module_or_path) {
     }
 
     if (module_or_path === undefined) {
-        module_or_path = new URL('../../assets/snip36_browser_prover_wasm_bg.wasm.br', import.meta.url);
+        throw new Error('snip36_browser_prover_wasm init requires explicit wasm bytes from the package loader');
     }
     const imports = __wbg_get_imports();
 

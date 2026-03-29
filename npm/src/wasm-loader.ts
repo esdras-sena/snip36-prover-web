@@ -1,5 +1,6 @@
 /// <reference path="./assets.d.ts" />
 
+import brotliPromise from "./vendor/brotli/index.web.js";
 import snip36WasmBrUrl from "../assets/snip36_wasm_bg.wasm.br?url";
 import browserProverWasmBrUrl from "../assets/snip36_browser_prover_wasm_bg.wasm.br?url";
 import txProverWasmBrUrl from "../assets/starknet_transaction_prover_wasm_bg.wasm.br?url";
@@ -17,15 +18,13 @@ export async function loadTransactionProverWasm(): Promise<ArrayBuffer> {
 }
 
 async function loadBrotliWasm(url: string): Promise<ArrayBuffer> {
-  if (typeof DecompressionStream === "undefined") {
-    throw new Error("Brotli wasm loading requires DecompressionStream support");
-  }
-
   const response = await fetch(url);
-  if (!response.ok || !response.body) {
+  if (!response.ok) {
     throw new Error(`failed to fetch brotli wasm: ${response.status} ${response.statusText}`);
   }
 
-  const stream = response.body.pipeThrough(new DecompressionStream("brotli" as unknown as CompressionFormat));
-  return await new Response(stream).arrayBuffer();
+  const compressed = new Uint8Array(await response.arrayBuffer());
+  const brotli = await brotliPromise;
+  const decompressed = brotli.decompress(compressed);
+  return new Uint8Array(decompressed).buffer;
 }

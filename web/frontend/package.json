@@ -4,12 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n server,vite -c blue,green \"cd ../.. && cargo run -p snip36-server\" \"vite\"",
+    "dev": "vite",
+    "dev:server": "cd ../.. && cargo run -p snip36-server",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@snip36/prover-web": "file:../..",
+    "@snip36/prover-web": "file:../../npm",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "snip36-wasm": "file:../../crates/snip36-wasm/pkg",
