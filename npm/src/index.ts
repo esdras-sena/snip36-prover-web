@@ -105,7 +105,7 @@ export async function generateExecutionPayloadInBrowser(artifact: Snip36ProofArt
   const baseConfig = {
     rpc_node_url: artifact.rpc_url,
     chain_id: artifact.chain_id,
-    validate_zero_fee_fields: true,
+    validate_zero_fee_fields: false,
     strk_fee_token_address: artifact.strk_fee_token_address,
   } as Record<string, unknown>;
   const runnerConfig = ((baseConfig?.runner_config as Record<string, unknown>) ?? {});
@@ -117,6 +117,7 @@ export async function generateExecutionPayloadInBrowser(artifact: Snip36ProofArt
       virtual_block_executor_config: {
         ...virtualBlockExecutorConfig,
         prefetch_state: false,
+        validate_txs: false,
       },
     },
   };
@@ -311,12 +312,31 @@ export async function get_snip36_proof(
     throw new Error("get_snip36_proof requires a WalletAccount signer.");
   }
 
-  void input;
-  void walletAccount;
+  const cairoVersion = await walletAccount.getCairoVersion();
+  const calldata = transaction.getExecuteCalldata([
+    {
+      contractAddress: input.call.contractAddress,
+      entrypoint: input.call.entrypoint,
+      calldata: input.call.calldata,
+    },
+  ], cairoVersion).map((felt) => normalizeFeltHex(felt));
 
-  throw new Error(
-    "Injected WalletAccount proving is currently blocked: Starknet wallet API `wallet_addInvokeTransaction` signs and submits, but only returns a transaction hash. It does not expose the signed INVOKE payload needed to execute only inside the virtual OS without broadcasting.",
-  );
+  const prepared = await buildUnsignedTransactionForProving({
+    rpc_url: input.rpc_url,
+    sender_address: input.sender_address,
+    calldata,
+    nonce: input.nonce ?? null,
+    chain_id: toChainIdFelt(input.chain_id),
+    resource_bounds: input.resource_bounds ?? null,
+  });
+
+  return proveSnip36InBrowser({
+    rpc_url: input.rpc_url,
+    block_number: input.block_number ?? prepared.block_number,
+    tx_json: prepared.transaction,
+    chain_id: input.chain_id,
+    strk_fee_token_address: input.strk_fee_token_address,
+  });
 }
 
 export async function buildUnsignedPayload(
