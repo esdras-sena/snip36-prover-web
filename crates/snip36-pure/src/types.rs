@@ -101,13 +101,47 @@ pub struct Snip36TransactionInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Snip36UnsignedTransactionInput {
+    pub sender_address: String,
+    pub calldata: Vec<String>,
+    pub nonce: String,
+    pub chain_id: String,
+    #[serde(default)]
+    pub resource_bounds: Option<ResourceBounds>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Snip36TransactionOutput {
     pub tx_hash: String,
     pub transaction: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Snip36UnsignedTransactionOutput {
+    pub tx_hash: String,
+    pub transaction: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Snip36PayloadOutput {
+    pub tx_hash: String,
+    pub payload: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Snip36UnsignedPayloadInput {
+    pub sender_address: String,
+    pub calldata: Vec<String>,
+    pub proof_base64: String,
+    pub proof_facts: Vec<String>,
+    pub nonce: String,
+    pub chain_id: String,
+    #[serde(default)]
+    pub resource_bounds: Option<ResourceBounds>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Snip36UnsignedPayloadOutput {
     pub tx_hash: String,
     pub payload: serde_json::Value,
 }

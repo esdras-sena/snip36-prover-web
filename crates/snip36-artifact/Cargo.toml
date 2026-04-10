@@ -7,6 +7,7 @@ description = "Portable proof artifact export layer for SNIP-36 web/wasm flows"
 
 [dependencies]
 snip36-core = { path = "../snip36-core" }
+snip36-pure = { path = "../snip36-pure" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 reqwest = { workspace = true }

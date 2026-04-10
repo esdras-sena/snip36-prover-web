@@ -10,7 +10,9 @@ import init, {
 import initOriginalPathProver, {
   export_transaction_cairo_pie,
 } from "./vendor/starknet_transaction_prover_wasm";
-import initBrowserProver, { prove_cairo_pie } from "./vendor/snip36_browser_prover_wasm";
+import initBrowserProver, {
+  prove_cairo_pie,
+} from "./vendor/snip36_browser_prover_wasm";
 import {
   loadBrowserProverWasm,
   loadSnip36CoreWasm,
@@ -28,7 +30,7 @@ export type WorkerRequest =
   | { kind: "normalize_artifact"; artifact: Snip36ProofArtifact }
   | {
       kind: "generate_execution_payload_in_browser";
-      config: unknown;
+      config: Record<string, unknown>;
       block_number: number;
       transaction: unknown;
     }
@@ -52,9 +54,24 @@ let workerCoreInitPromise: Promise<unknown> | null = null;
 let workerTxInitPromise: Promise<unknown> | null = null;
 let workerBrowserProverInitPromise: Promise<unknown> | null = null;
 
+self.addEventListener("error", (event) => {
+  self.postMessage({
+    ok: false,
+    error: `worker runtime error: ${event.message || "unknown"}`,
+  } satisfies WorkerResponse);
+});
+
+self.addEventListener("unhandledrejection", (event) => {
+  const reason = event.reason;
+  self.postMessage({
+    ok: false,
+    error: `worker unhandled rejection: ${reason instanceof Error ? `${reason.name}: ${reason.message}` : String(reason)}`,
+  } satisfies WorkerResponse);
+});
+
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   try {
-    if (!workerCoreInitPromise) workerCoreInitPromise = loadSnip36CoreWasm().then((input) => init(input));
+    if (!workerCoreInitPromise) workerCoreInitPromise = loadSnip36CoreWasm().then((input) => init({ module_or_path: input }));
     await workerCoreInitPromise;
     const msg = event.data;
 
@@ -67,10 +84,23 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         } satisfies WorkerResponse);
         return;
       case "generate_execution_payload_in_browser": {
-        if (!workerTxInitPromise) workerTxInitPromise = loadTransactionProverWasm().then((input) => initOriginalPathProver(input));
+        if (!workerTxInitPromise) workerTxInitPromise = loadTransactionProverWasm().then((input) => initOriginalPathProver({ module_or_path: input }));
         await workerTxInitPromise;
+        const baseConfig = msg.config as Record<string, unknown>;
+        const runnerConfig = ((baseConfig?.runner_config as Record<string, unknown>) ?? {});
+        const virtualBlockExecutorConfig = ((runnerConfig?.virtual_block_executor_config as Record<string, unknown>) ?? {});
+        const config = {
+          ...baseConfig,
+          runner_config: {
+            ...runnerConfig,
+            virtual_block_executor_config: {
+              ...virtualBlockExecutorConfig,
+              prefetch_state: false,
+            },
+          },
+        };
         const value = (await export_transaction_cairo_pie({
-          config: msg.config,
+          config,
           block_number: msg.block_number,
           transaction: msg.transaction,
         })) as CairoPieExecutionPayload;
@@ -78,31 +108,39 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         return;
       }
       case "prove_artifact_in_browser": {
-        if (!workerBrowserProverInitPromise) workerBrowserProverInitPromise = loadBrowserProverWasm().then((input) => initBrowserProver(input));
+        if (!workerBrowserProverInitPromise) {
+          workerBrowserProverInitPromise = loadBrowserProverWasm().then((input) =>
+            initBrowserProver({ module_or_path: input }),
+          );
+        }
         await workerBrowserProverInitPromise;
         if (!msg.artifact.execution_payload) throw new Error("artifact.execution_payload is missing");
         const payload = JSON.parse(msg.artifact.execution_payload) as CairoPieExecutionPayload;
         const proved = prove_cairo_pie({
           cairo_pie_zip_base64: payload.cairo_pie_zip_base64,
         }) as {
-          proof_base64: string;
-          proof_facts: string[];
+          proof_base64?: string;
+          proof_facts?: string[];
         };
+        if (!proved?.proof_base64 || !Array.isArray(proved.proof_facts)) {
+          throw new Error(`invalid prove_cairo_pie response: ${JSON.stringify(proved)}`);
+        }
+        const rawMessages = payload.l2_to_l1_messages;
         self.postMessage({
           ok: true,
           kind: msg.kind,
           value: {
             artifact: {
               ...msg.artifact,
-              raw_messages: payload.l2_to_l1_messages
-                ? { l2_to_l1_messages: payload.l2_to_l1_messages }
+              raw_messages: rawMessages
+                ? { l2_to_l1_messages: rawMessages }
                 : msg.artifact.raw_messages,
               proof_facts_preimage: proved.proof_facts,
             },
             proof_base64: proved.proof_base64,
             proof_facts: proved.proof_facts,
-            raw_messages: payload.l2_to_l1_messages
-              ? { l2_to_l1_messages: payload.l2_to_l1_messages }
+            raw_messages: rawMessages
+              ? { l2_to_l1_messages: rawMessages }
               : msg.artifact.raw_messages,
             proof_size: proved.proof_base64.length,
           } as Snip36ProofBundle,

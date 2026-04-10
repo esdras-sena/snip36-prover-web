@@ -6,17 +6,13 @@ use std::time::Duration;
 
 use color_eyre::eyre::{bail, WrapErr};
 use serde_json::Value;
-use snip36_core::{
-    proof::parse_proof_facts_json,
-    rpc::StarknetRpc,
-    types::{Snip36ProofArtifact, Snip36ProofBundle},
-    Config,
-};
+use snip36_core::{proof::parse_proof_facts_json, rpc::StarknetRpc, Config};
+use snip36_pure::types::{Snip36ProofArtifact, Snip36ProofBundle};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 #[derive(Debug, Clone)]
 pub struct ArtifactExportRequest {
-    pub block_number: u64,
+    pub block_number: Option<u64>,
     pub rpc_url: String,
     pub chain_id: String,
     pub strk_fee_token_address: String,
@@ -25,18 +21,22 @@ pub struct ArtifactExportRequest {
 }
 
 pub async fn export_artifact(req: ArtifactExportRequest) -> Result<Snip36ProofArtifact, ArtifactError> {
+    let rpc = StarknetRpc::new(&req.rpc_url);
+
     let transaction = match (req.tx_json, req.tx_hash.clone()) {
         (Some(tx), _) => tx,
-        (None, Some(hash)) => {
-            let rpc = StarknetRpc::new(&req.rpc_url);
-            rpc.get_transaction(&hash).await.map_err(ArtifactError::Rpc)?
-        }
+        (None, Some(hash)) => rpc.get_transaction(&hash).await.map_err(ArtifactError::Rpc)?,
         (None, None) => return Err(ArtifactError::MissingTransaction),
+    };
+
+    let block_number = match req.block_number {
+        Some(block_number) => block_number,
+        None => rpc.block_number().await.map_err(ArtifactError::Rpc)?,
     };
 
     Ok(Snip36ProofArtifact {
         version: 1,
-        block_number: req.block_number,
+        block_number,
         rpc_url: req.rpc_url,
         chain_id: req.chain_id,
         strk_fee_token_address: req.strk_fee_token_address,

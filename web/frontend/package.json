@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@snip36/prover-web": "file:../../npm",
+    "@starknet-io/get-starknet": "^4.0.8",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "snip36-wasm": "file:../../crates/snip36-wasm/pkg",

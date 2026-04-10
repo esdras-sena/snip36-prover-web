@@ -10,7 +10,7 @@
 use starknet_crypto::poseidon_hash_many;
 use starknet_types_core::felt::Felt;
 
-use crate::types::{ResourceBounds, Snip36PayloadInput, Snip36PayloadOutput};
+use crate::types::ResourceBounds;
 
 /// "invoke" encoded as a short string felt.
 fn invoke_prefix() -> Felt {
@@ -175,41 +175,6 @@ pub fn sign_and_build_payload(
     Ok((tx_hash, payload))
 }
 
-pub fn build_payload_from_json(input: &Snip36PayloadInput) -> Result<Snip36PayloadOutput, String> {
-    let sender_address = felt_from_hex(&input.sender_address)?;
-    let private_key = felt_from_hex(&input.private_key)?;
-    let calldata = input
-        .calldata
-        .iter()
-        .map(|v| felt_from_hex(v))
-        .collect::<Result<Vec<_>, _>>()?;
-    let proof_facts = input
-        .proof_facts
-        .iter()
-        .map(|v| felt_from_hex(v))
-        .collect::<Result<Vec<_>, _>>()?;
-    let nonce = felt_from_hex(&input.nonce)?;
-    let chain_id = chain_id_felt(&input.chain_id);
-    let resource_bounds = input.resource_bounds.clone().unwrap_or_default();
-
-    let params = crate::types::SubmitParams {
-        sender_address,
-        private_key,
-        calldata,
-        proof_base64: input.proof_base64.clone(),
-        proof_facts,
-        nonce,
-        chain_id,
-        resource_bounds,
-    };
-
-    let (tx_hash, payload) = sign_and_build_payload(&params).map_err(|e| e.to_string())?;
-    Ok(Snip36PayloadOutput {
-        tx_hash: format!("{:#x}", tx_hash),
-        payload,
-    })
-}
-
 #[derive(Debug, thiserror::Error)]
 pub enum SignError {
     #[error("ECDSA signing failed: {0}")]
@@ -289,21 +254,4 @@ mod tests {
         assert_ne!(h_without, h_with);
     }
 
-    #[test]
-    fn test_build_payload_from_json() {
-        let input = Snip36PayloadInput {
-            sender_address: "0x123".into(),
-            private_key: "0x456".into(),
-            calldata: vec!["0x1".into(), "0x2".into()],
-            proof_base64: "cHJvb2Y=".into(),
-            proof_facts: vec!["0xabc".into()],
-            nonce: "0x5".into(),
-            chain_id: "SN_SEPOLIA".into(),
-            resource_bounds: None,
-        };
-
-        let output = build_payload_from_json(&input).unwrap();
-        assert!(output.tx_hash.starts_with("0x"));
-        assert_eq!(output.payload["proof"], "cHJvb2Y=");
-    }
 }

@@ -7,9 +7,15 @@ export function build_snip36_payload(input_js: any): any;
 
 export function build_snip36_transaction(input_js: any): any;
 
+export function build_snip36_unsigned_payload(input_js: any): any;
+
+export function build_snip36_unsigned_transaction(input_js: any): any;
+
 export function bundle_from_artifact_payload(artifact_js: any): any;
 
 export function bundle_to_json(bundle_js: any): string;
+
+export function fetch_latest_block_number(rpc_url: string): Promise<number>;
 
 export function normalize_artifact(artifact_js: any): any;
 
@@ -19,13 +25,19 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly normalize_artifact: (a: number, b: number) => void;
-    readonly bundle_from_artifact_payload: (a: number, b: number) => void;
-    readonly normalize_proof_bundle: (a: number, b: number) => void;
-    readonly build_snip36_transaction: (a: number, b: number) => void;
-    readonly build_snip36_payload: (a: number, b: number) => void;
     readonly artifact_to_json: (a: number, b: number) => void;
+    readonly build_snip36_payload: (a: number, b: number) => void;
+    readonly build_snip36_transaction: (a: number, b: number) => void;
+    readonly build_snip36_unsigned_payload: (a: number, b: number) => void;
+    readonly build_snip36_unsigned_transaction: (a: number, b: number) => void;
+    readonly bundle_from_artifact_payload: (a: number, b: number) => void;
     readonly bundle_to_json: (a: number, b: number) => void;
+    readonly fetch_latest_block_number: (a: number, b: number) => number;
+    readonly normalize_artifact: (a: number, b: number) => void;
+    readonly normalize_proof_bundle: (a: number, b: number) => void;
+    readonly __wasm_bindgen_func_elem_571: (a: number, b: number) => void;
+    readonly __wasm_bindgen_func_elem_654: (a: number, b: number, c: number, d: number) => void;
+    readonly __wasm_bindgen_func_elem_659: (a: number, b: number, c: number, d: number) => void;
     readonly __wbindgen_export: (a: number, b: number) => number;
     readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_export3: (a: number) => void;

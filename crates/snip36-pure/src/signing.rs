@@ -3,7 +3,8 @@ use starknet_types_core::felt::Felt;
 
 use crate::types::{
     ResourceBounds, Snip36PayloadInput, Snip36PayloadOutput, Snip36TransactionInput,
-    Snip36TransactionOutput, SubmitParams,
+    Snip36TransactionOutput, Snip36UnsignedPayloadInput, Snip36UnsignedPayloadOutput,
+    Snip36UnsignedTransactionInput, Snip36UnsignedTransactionOutput, SubmitParams,
 };
 
 fn invoke_prefix() -> Felt {
@@ -176,6 +177,48 @@ pub fn build_transaction_from_json(input: &Snip36TransactionInput) -> Result<Sni
     Ok(Snip36TransactionOutput { tx_hash: format!("{:#x}", tx_hash), transaction })
 }
 
+pub fn build_unsigned_transaction_from_json(
+    input: &Snip36UnsignedTransactionInput,
+) -> Result<Snip36UnsignedTransactionOutput, String> {
+    let sender_address = felt_from_hex(&input.sender_address)?;
+    let calldata = input.calldata.iter().map(|v| felt_from_hex(v)).collect::<Result<Vec<_>, _>>()?;
+    let nonce = felt_from_hex(&input.nonce)?;
+    let chain_id = chain_id_felt(&input.chain_id);
+    let resource_bounds = input.resource_bounds.clone().unwrap_or_else(ResourceBounds::zero_fee);
+
+    let tx_hash = compute_invoke_v3_tx_hash(
+        sender_address,
+        &calldata,
+        chain_id,
+        nonce,
+        Felt::ZERO,
+        &resource_bounds,
+        &[],
+        &[],
+        0,
+        0,
+        &[],
+    );
+
+    let calldata_hex: Vec<String> = calldata.iter().map(|f| format!("{:#x}", f)).collect();
+    let transaction = serde_json::json!({
+        "type": "INVOKE",
+        "version": "0x3",
+        "sender_address": input.sender_address,
+        "calldata": calldata_hex,
+        "nonce": format!("{:#x}", nonce),
+        "resource_bounds": resource_bounds.to_rpc_json(),
+        "tip": "0x0",
+        "paymaster_data": [],
+        "account_deployment_data": [],
+        "nonce_data_availability_mode": "L1",
+        "fee_data_availability_mode": "L1",
+        "signature": [],
+    });
+
+    Ok(Snip36UnsignedTransactionOutput { tx_hash: format!("{:#x}", tx_hash), transaction })
+}
+
 pub fn build_payload_from_json(input: &Snip36PayloadInput) -> Result<Snip36PayloadOutput, String> {
     let params = SubmitParams {
         sender_address: felt_from_hex(&input.sender_address)?,
@@ -190,6 +233,55 @@ pub fn build_payload_from_json(input: &Snip36PayloadInput) -> Result<Snip36Paylo
 
     let (tx_hash, payload) = sign_and_build_payload(&params).map_err(|e| e.to_string())?;
     Ok(Snip36PayloadOutput { tx_hash: format!("{:#x}", tx_hash), payload })
+}
+
+pub fn build_unsigned_payload_from_json(
+    input: &Snip36UnsignedPayloadInput,
+) -> Result<Snip36UnsignedPayloadOutput, String> {
+    let sender_address = felt_from_hex(&input.sender_address)?;
+    let calldata = input.calldata.iter().map(|v| felt_from_hex(v)).collect::<Result<Vec<_>, _>>()?;
+    let proof_facts = input.proof_facts.iter().map(|v| felt_from_hex(v)).collect::<Result<Vec<_>, _>>()?;
+    let nonce = felt_from_hex(&input.nonce)?;
+    let chain_id = chain_id_felt(&input.chain_id);
+    let resource_bounds = input.resource_bounds.clone().unwrap_or_default();
+
+    let tx_hash = compute_invoke_v3_tx_hash(
+        sender_address,
+        &calldata,
+        chain_id,
+        nonce,
+        Felt::ZERO,
+        &resource_bounds,
+        &[],
+        &[],
+        0,
+        0,
+        &proof_facts,
+    );
+
+    let calldata_hex: Vec<String> = calldata.iter().map(|f| format!("{:#x}", f)).collect();
+    let proof_facts_hex: Vec<String> = proof_facts.iter().map(|f| format!("{:#x}", f)).collect();
+    let payload = serde_json::json!({
+        "type": "INVOKE",
+        "version": "0x3",
+        "sender_address": format!("{:#x}", sender_address),
+        "calldata": calldata_hex,
+        "nonce": format!("{:#x}", nonce),
+        "resource_bounds": resource_bounds.to_rpc_json(),
+        "tip": "0x0",
+        "paymaster_data": [],
+        "account_deployment_data": [],
+        "nonce_data_availability_mode": "L1",
+        "fee_data_availability_mode": "L1",
+        "signature": [],
+        "proof": input.proof_base64,
+        "proof_facts": proof_facts_hex,
+    });
+
+    Ok(Snip36UnsignedPayloadOutput {
+        tx_hash: format!("{:#x}", tx_hash),
+        payload,
+    })
 }
 
 #[derive(Debug, thiserror::Error)]

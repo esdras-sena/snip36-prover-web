@@ -4318,6 +4318,7 @@ dependencies = [
  "serde",
  "serde_json",
  "snip36-core",
+ "snip36-pure",
  "thiserror 2.0.18",
  "tokio",
 ]
@@ -4378,7 +4379,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "snip36-artifact",
  "snip36-core",
  "starknet-types-core",
  "tokio",
@@ -4393,11 +4393,14 @@ dependencies = [
 name = "snip36-wasm"
 version = "0.1.0"
 dependencies = [
+ "js-sys",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
  "snip36-pure",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]

@@ -26,6 +26,19 @@ export interface Snip36TransactionBuildInput {
   rpc_url: string;
   sender_address: string;
   private_key: string;
+  call: {
+    contractAddress: string,
+    entrypoint: string,
+    calldata: string[]
+  };
+  nonce?: string | null;
+  chain_id: string;
+  resource_bounds?: ResourceBounds | null;
+}
+
+export interface Snip36UnsignedTransactionBuildInput {
+  rpc_url: string;
+  sender_address: string;
   calldata: string[];
   nonce?: string | null;
   chain_id: string;
@@ -35,15 +48,31 @@ export interface Snip36TransactionBuildInput {
 export interface Snip36TransactionBuildOutput {
   tx_hash: string;
   transaction: unknown;
+  block_number: number;
 }
 
 export interface Snip36ProveRequest {
   rpc_url: string;
   block_number?: number | null;
-  tx_hash?: string;
   tx_json?: unknown;
   chain_id: string;
   strk_fee_token_address: string;
+}
+
+export interface GetSnip36ProofInput {
+  rpc_url: string;
+  sender_address: string;
+  signer: unknown;
+  call: {
+    contractAddress: string,
+    entrypoint: string,
+    calldata: string[]
+  };
+  block_number?: number | null;
+  nonce?: string | null;
+  chain_id: string;
+  strk_fee_token_address: string;
+  resource_bounds?: ResourceBounds | null;
 }
 
 export interface CairoPieExecutionPayload {
@@ -63,7 +92,11 @@ export interface Snip36PayloadInput {
   rpc_url: string;
   sender_address: string;
   private_key: string;
-  calldata: string[];
+  call: {
+    contractAddress: string,
+    entrypoint: string,
+    calldata: string[]
+  };
   proof_base64: string;
   proof_facts: string[];
   nonce?: string | null;
@@ -74,4 +107,47 @@ export interface Snip36PayloadInput {
 export interface Snip36PayloadOutput {
   tx_hash: string;
   payload: unknown;
+}
+
+export interface SubmitSnip36TxInput {
+  proof_base64: string;
+  proof_facts: string[];
+  rpc_url: string;
+  sender_address: string;
+  signer: unknown;
+  call: {
+    contractAddress: string,
+    entrypoint: string,
+    calldata: string[]
+  };
+  chain_id: string;
+  nonce?: string | null;
+  resource_bounds?: ResourceBounds | null;
+}
+
+export interface SubmitSnip36TxOutput {
+  tx_hash: string;
+  payload: unknown;
+}
+
+export interface Snip36UnsignedPayloadInput {
+  sender_address: string;
+  call: {
+    contractAddress: string,
+    entrypoint: string,
+    calldata: string[]
+  };
+  proof_base64: string;
+  proof_facts: string[];
+  nonce: string;
+  chain_id: string;
+  resource_bounds?: ResourceBounds | null;
+}
+
+export interface Snip36UnsignedPayloadOutput {
+  tx_hash: string;
+  payload: {
+    signature: string[];
+    [key: string]: unknown;
+  };
 }
